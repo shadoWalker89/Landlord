@@ -90,7 +90,28 @@ class Landlord implements Scope
         }
 
         foreach ($this->getModelTenants($model) as $tenantColumn => $tenantId) {
-            $builder->where($model->getTable() . '.' . $tenantColumn, '=', $tenantId);
+            $builder->where(function($q) use ($model, $tenantColumn, $tenantId) {
+                $q->where($model->getTable() . '.' . $tenantColumn, '=', $tenantId);
+                
+                if( method_exists($model, 'allowNullableTenant') && $model->allowNullableTenant() )
+                {
+                    /**
+                     * The return value could be true for all columns or an array of specific tenant
+                     * columns that can be nullable. 
+                     */
+                    if ( 
+                        $model->allowNullableTenant() === true 
+                        OR 
+                        (
+                            is_array($model->allowNullableTenant())
+                            AND
+                            in_array($tenantColumn, $model->allowNullableTenant())
+                        ) 
+                    ) {
+                        $q->orWhereNull($tenantColumn);
+                    }
+                }
+            });
         }
     }
 
